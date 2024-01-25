@@ -2,10 +2,13 @@
 This Python repo is for a hybrid Frank-Wolfe method introduced in "Minimization Over the Nonconvex Sparsity Constraint Using A Hybrid First-order method with Guaranteed Feasibility"
 
 ## The Problem
-We focus on the $\ell_p (0<p<1)$ ball-constrained optimization problem, specifically
-$f:\mathbb{R}^d \rightarrow \mathbb{R}$ via $\ell_p$ ball-constraint $\mathcal{B}_{\ell_p}:= \{\bm{x}\in \mathbb{R}^n \mid \Vert\bm{x}\Vert_{p}^{p}\leq \gamma\}$.
+We focus on the $\ell_p$ ball-constrained optimization problem, specifically
+$f:\mathbb{R}^d \rightarrow \mathbb{R}$ via $\ell_p$ ball-constraint $\mathcal{B}_{\ell_p}:=  \lbrace x\in \mathbb{R}^n \mid ||x||_p^p \leq \gamma \rbrace$.
 
-
+$$
+\min_{x\in \mathbb{R}^d} \qquad f(x) \qquad \qquad
+\text{s. t. }  \qquad x  \in  \mathcal{B}_{\ell_p}
+$$
 ## Usage
 ```
 import fw_lib
