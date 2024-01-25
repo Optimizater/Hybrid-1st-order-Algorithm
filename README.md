@@ -4,10 +4,7 @@ This Python repo is for a hybrid Frank-Wolfe method introduced in "Minimization 
 ## The Problem
 We focus on the $\ell_p (0<p<1)$ ball-constrained optimization problem, specifically
 $f:\mathbb{R}^d \rightarrow \mathbb{R}$ via $\ell_p$ ball-constraint $\mathcal{B}_{\ell_p}:= \{\bm{x}\in \mathbb{R}^n \mid \Vert\bm{x}\Vert_{p}^{p}\leq \gamma\}$.
-$$
-\min_{x\in \mathbb{R}^d} \qquad f(x) \\
-\text{s. t. }  \qquad x  \in  \mathcal{B}_{\ell_p}
-$$
+
 
 ## Usage
 ```
