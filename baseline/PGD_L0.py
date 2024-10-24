@@ -8,6 +8,7 @@ import numpy as np
 from numpy import linalg as LA
 from timeit import default_timer as timer
 
+
 def PGD_L0(x, mu, radius, loss, gradf):
     """L1 ball exact projection
     :param tau: L1 ball radius.
@@ -30,9 +31,9 @@ def PGD_L0(x, mu, radius, loss, gradf):
         else:
             # Find the largest s elements (magnitude), i.e., find the smallest n-s elements
             ind_ord = np.argsort(abs(z))
-            ind_ord = ind_ord[0:n - int(radius)]
+            ind_ord = ind_ord[0 : n - int(radius)]
             x = z
-            x[ind_ord] = 0.
+            x[ind_ord] = 0.0
 
         res = LA.norm(x - x_pre)
         # res = LA.norm(A.dot(x) - y)
@@ -41,5 +42,5 @@ def PGD_L0(x, mu, radius, loss, gradf):
         # print(loss(x))
         if res < tol:
             break
-    
-    return x, timer()-t0, iter
+
+    return x, timer() - t0, iter
