@@ -233,16 +233,4 @@ if __name__ == "__main__":
     solver = FW_LP(p,radius,lambda x: 0.5*LA.norm(x-y)**2,lambda x:x-y, Lf = 1)
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
-    input()
-    
-    # Sparse Signal Recovery
-    from SparseSignalRecovery.least_square import squared_loss
-    obj,grad,x_star,L,A,b = squared_loss()
-    p = 0.9
-    radius = LA.norm(x_star,p)**p
-    v = np.random.uniform(0,1,size = x_star.shape)
-    x_ini = 0.9*(radius/LA.norm(v,1)*v)**(1/p)
-    
-    solver = FW_LP(p,radius,obj,grad,Lf = L)
-    x,_,_ = solver.solve(x_ini.copy(),mu=1/L,verbose=True)
     
