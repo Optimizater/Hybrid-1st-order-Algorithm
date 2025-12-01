@@ -106,25 +106,34 @@ class FW_LP:
         """
         signum = np.sign(y)
         y_abs = np.abs(y)
-        z = y_abs / w        
+
+        w_safe = np.copy(w)
+        w_safe[w_safe == 0] = self.EPS
+        
+        z = y_abs / w_safe        
         perm = np.argsort(-z)
         y_sorted = y_abs[perm]
         w_sorted = w[perm]
         
         cum_wy = np.cumsum(w_sorted * y_sorted)
         cum_w2 = np.cumsum(w_sorted ** 2)
-        tau_candidates = (cum_wy - a) / cum_w2
+        tau_candidates = (cum_wy - a) / (cum_w2 + self.EPS)
         z_sorted = z[perm]
 
-        k = np.searchsorted(-(z_sorted - tau_candidates), 0)
-        tau = tau_candidates[k-1] if k > 0 else tau_candidates[0]
+        mask = z_sorted > tau_candidates
+        if np.any(mask):
+            k = np.where(mask)[0][-1]
+            tau = tau_candidates[k]
+        else:
+            tau = tau_candidates[0]
        
         # while ((i < d) and (z[i] > tau)):
         #     sumWY += w[z_perm[i]] * y[z_perm[i]]
         #     Ws += w[z_perm[i]] * w[z_perm[i]]
         #     tau = (sumWY - a) / Ws
         #     i += 1
-        return np.maximum(y_abs - w * tau, 0.0) * signum
+        projected = np.maximum(y_abs - w_safe * tau, 0.0) * signum
+        return projected
 
     def weighted_l1ball_projection(self, mu, grad, x):
         """
@@ -140,6 +149,7 @@ class FW_LP:
         """
         # Step 1: Compute the point to be projected: u^k = x^k - mu * \nabla f(x^k)
         z = x - mu * grad  # Point to be projected
+        z = z.copy()
 
         # Step 2: Enforce sign consistency (implements sign extraction)
         # Mathematical: \tilde{u}_i = sign(x_i) * u_i
@@ -158,6 +168,9 @@ class FW_LP:
         # Step 5: Compute weights for the weighted l1 ball projection
         weights = np.zeros_like(x)
         weights[active_indices] = self.p * (np.abs(x[active_indices]) + self.EPS) ** (self.p - 1)
+
+        if active_indices.size == 0:
+            return np.zeros_like(x)
 
         # Step 6: Compute the radius for the weighted l1 ball
         radius_L1 = (self.radius - LA.norm(x[active_indices], self.p) ** self.p +
@@ -185,10 +198,7 @@ class FW_LP:
         z = np.zeros_like(x)
         idx = np.argmax(np.abs(grad))
         z[idx] = self.radius ** (1/self.p) * (-np.sign(grad[idx]))
-        fw_solution = z # Solution of FW subproblem
-        #z[np.argmax(np.abs(grad))] = self.radius
-        # fw_solution = -np.power(z, 1 / self.p) * np.sign(grad)  # Solution of FW subproblem
-        descent_direction = fw_solution - x
+        descent_direction = z - x
         fw_result = grad.dot(-descent_direction)
         return descent_direction, fw_result
 
@@ -272,7 +282,7 @@ class FW_LP:
                 x += alpha * descent_direction
             else:
                 if verbose:
-                    print("Iterative exceed constraint.")
+                    print("Infeasible iterates.")
                 break
             self.objective_list.append(self.obj(x))
             if verbose:
@@ -312,6 +322,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {duration:.2f}s")
     
     
+
 
 
 
