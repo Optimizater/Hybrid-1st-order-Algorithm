@@ -171,8 +171,11 @@ class FW_LP:
             tuple: Direction and the result of the Frank-Wolfe subproblem.
         """
         z = np.zeros_like(x)
-        z[np.argmax(np.abs(grad))] = self.radius
-        fw_solution = -np.power(z, 1 / self.p) * np.sign(grad)  # Solution of FW subproblem
+        idx = np.argmax(np.abs(grad))
+        z[idx] = self.radius ** (1/self.p) * (-np.sign(grad[idx]))
+        fw_solution = z # Solution of FW subproblem
+        #z[np.argmax(np.abs(grad))] = self.radius
+        # fw_solution = -np.power(z, 1 / self.p) * np.sign(grad)  # Solution of FW subproblem
         descent_direction = fw_solution - x
         fw_result = grad.dot(-descent_direction)
         return descent_direction, fw_result
@@ -203,7 +206,7 @@ class FW_LP:
                 break
 
             grad = self.grad(x)  # Gradient computation
-            if abs(self.radius - LA.norm(x, p) ** p) <= tol:
+            if abs(self.radius - LA.norm(x, self.p) ** self.p) <= tol:
                 # On the boundary, use projected gradient descent
                 x_pre = x.copy()
                 if mu is None:
@@ -219,7 +222,7 @@ class FW_LP:
                     if verbose:
                         print("Projection residual reaches stopping tolerance.")
                     break
-            elif LA.norm(x, p) ** p < radius:
+            elif LA.norm(x, self.p) ** self.p < self.radius:
                 # Inside the Lp ball, use Frank-Wolfe method
                 descent_direction, fw_result = self.fw_subproblem(grad, x)
                 if fw_result < stopping_tol:
@@ -227,7 +230,17 @@ class FW_LP:
                         print("Frank-Wolfe residual below tolerance.")
                     break
                 if self.Lf == None:
-                    self.Lf = LA.norm(self.grad(x)-self.grad(x+1e-3*descent_direction))/LA.norm(1e-3*descent_direction)    
+                    step = 1e-3 * descent_direction
+                    step_norm = LA.norm(step)
+                    if step_norm > 1e-12:
+                        grad_perturbed = self.grad(x + step)
+                        L_estimate = LA.norm(grad - grad_perturbed) / step_norm
+                        if np.isfinite(L_estimate) and L_estimate > 0:
+                            self.Lf = max(L_estimate, 1e-10) 
+                    else:
+                        self.Lf = 1.0
+                        if verbose:
+                        print(f"Warning: Step norm {step_norm:.2e} too small for Lipschitz estimation, using default L_f =1.0")
                 alpha, self.Lf = self.search_stepsize(descent_direction, x, fw_result, self.Lf)
                 x += alpha * descent_direction
             else:
@@ -248,11 +261,12 @@ if __name__ == "__main__":
     p = 0.9
     y = np.random.normal(0.,1.,int(1e5))
     radius = 0.01 * LA.norm(y, p) ** p
-    x_ini = 0.3 *  (radius ** (1/p)) * (np.abs(y,dtype=np.float64) / LA.norm(y,p))
+    x_ini = 0.3 *  (radius ** (1/p)) * (np.abs(y).astype(np.float64) / LA.norm(y,p))
     
     solver = FW_LP(p,radius,lambda x: 0.5*LA.norm(x-y)**2,lambda x:x-y, Lf = 1)
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
     
+
 
 
