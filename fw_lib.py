@@ -308,20 +308,21 @@ if __name__ == "__main__":
                    lambda x: 0.5*LA.norm(x-y)**2,
                    lambda x:x-y, 
                    Lf = 1.0)
-    x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
+    soution,elapsedTime,iter_num = solver.solve(x_ini.copy(),mu=1,verbose=True)
 
     
-    norm_p_p = LA.norm(x, p)**p
-    final_obj = 0.5*LA.norm(x-y)**2
+    norm_p_p = LA.norm(soution, p)**p
+    final_obj = 0.5*LA.norm(soution-y)**2
     print("="*70)
     print("Test Summary")
     print("="*70)
     print(f"Final ||x||_p^p: {norm_p_p:.4e} (Radius: {radius:.4e})")
     print(f"Constraint Satisfied: {norm_p_p <= radius + 1e-8}")
     print(f"Final Objective Value: {final_obj:.4e}")
-    print(f"Total Iterations: {iter_num}, Total Time: {duration:.2f}s")
+    print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
