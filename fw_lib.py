@@ -135,10 +135,10 @@ class FW_LP:
         # then \tilde{u}_i < 0, which would project to 0 on the nonnegative ball.
         # We pre-filter these to improve efficiency.
         
-        z[x * z <= 0] = 0  # Enforce sign consistency
+        z[x * z <= 0] = 0 
 
         # Step 3: Handle inactive components (near-zero in x^k)
-        z[np.abs(x) <= self.EPS] = 0  # Handle zero components
+        z[np.abs(x) <= self.EPS] = 0 
 
         # Step 4: Identify active indices I(x^k) = {i : |x_i^k| > EPS}
         active_indices = np.where(np.abs(x) > self.EPS)[0]
@@ -254,4 +254,5 @@ if __name__ == "__main__":
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
     
+
 
