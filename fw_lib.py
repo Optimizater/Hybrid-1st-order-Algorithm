@@ -45,7 +45,11 @@ class FW_LP:
         Returns:
             tuple: Calculated stepsize and updated Lipschitz constant.
         """
-        M = g**2 / (2 * (self.objective_list[-2] - self.objective_list[-1] + self.EPS) * LA.norm(d)**2)
+        if len(self.objective_list) < 2:
+            obj_diff = self.EPS
+        else:
+            obj_diff = self.objective_list[-2] - self.objective_list[-1] + self.EPS
+        M = g**2 / (2 * obj_diff * LA.norm(d)**2)
         M = np.clip(M, eta * Lf, Lf)
         alpha = min(g / (M * LA.norm(d)**2), 1)
         iter_count = 0
@@ -98,22 +102,26 @@ class FW_LP:
             np.array: Projected point.
         """
         signum = np.sign(y)
-        y = y * signum
-        d = len(y)
-        z = y / w        
-        z_perm = np.argsort(-z)
-        z = z[z_perm]
-        i = 0
-        sumWY = w[z_perm[i]] * y[z_perm[i]]
-        Ws = w[z_perm[i]] * w[z_perm[i]]
-        tau = (sumWY - a) / Ws
-        i += 1
-        while ((i < d) and (z[i] > tau)):
-            sumWY += w[z_perm[i]] * y[z_perm[i]]
-            Ws += w[z_perm[i]] * w[z_perm[i]]
-            tau = (sumWY - a) / Ws
-            i += 1
-        return np.maximum(y - w * tau, 0) * signum
+        y_abs = np.abs(y)
+        z = y_abs / w        
+        perm = np.argsort(-z)
+        y_sorted = y_abs[perm]
+        w_sorted = w[perm]
+        
+        cum_wy = np.cumsum(w_sorted * y_sorted)
+        cum_w2 = np.cumsum(w_sorted ** 2)
+        tau_candidates = (cum_wy - a) / cum_w2
+        z_sorted = z[perm]
+
+        k = np.searchsorted(-(z_sorted - tau_candidates), 0)
+        tau = tau_candidates[k-1] if k > 0 else tau_candidates[0]
+       
+        # while ((i < d) and (z[i] > tau)):
+        #     sumWY += w[z_perm[i]] * y[z_perm[i]]
+        #     Ws += w[z_perm[i]] * w[z_perm[i]]
+        #     tau = (sumWY - a) / Ws
+        #     i += 1
+        return np.maximum(y_abs - w * tau, 0.0) * signum
 
     def weighted_l1ball_projection(self, mu, grad, x):
         """
@@ -146,7 +154,7 @@ class FW_LP:
 
         # Step 5: Compute weights for the weighted l1 ball projection
         weights = np.zeros_like(x)
-        weights[active_indices] = self.p * np.abs(x[active_indices] + self.EPS) ** (self.p - 1)
+        weights[active_indices] = self.p * (np.abs(x[active_indices]) + self.EPS) ** (self.p - 1)
 
         # Step 6: Compute the radius for the weighted l1 ball
         radius_L1 = (self.radius - LA.norm(x[active_indices], self.p) ** self.p +
@@ -204,7 +212,7 @@ class FW_LP:
                 print(f"Lf reset to initial value: {self.Lf}")
         
         x = np.copy(x_ini)
-        self.objective_list = [self.obj(x), self.obj(x)]
+        self.objective_list = [self.obj(x)]
         time_start = timer()
 
         for iteration in range(self.maxiter):
@@ -290,6 +298,7 @@ if __name__ == "__main__":
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
     
+
 
 
 
