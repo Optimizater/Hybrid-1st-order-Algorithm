@@ -26,6 +26,7 @@ class FW_LP:
         self.obj = obj
         self.grad = grad
         self.Lf = Lf 
+        self.Lf_initial = Lf
         self.maxiter = maxiter
         self.EPS = np.finfo(np.float64).eps
 
@@ -180,7 +181,7 @@ class FW_LP:
         fw_result = grad.dot(-descent_direction)
         return descent_direction, fw_result
 
-    def solve(self, x_ini, mu=None, stopping_tol=1e-8, tol=1e-10, verbose=False, maxtime=200):
+    def solve(self, x_ini, mu=None, stopping_tol=1e-8, tol=1e-10, verbose=False, maxtime=200, reset_Lf=False):
         """
         Solves the optimization problem using a hybrid approach of 
         Frank-Wolfe and projected gradient descent methods.
@@ -192,10 +193,16 @@ class FW_LP:
             tol (float): Tolerance used for numerical comparisons.
             verbose (bool): Enables detailed logging.
             maxtime (int): Maximum time allowed for the optimization process.
+            reset_Lf (bool): If True, reset Lf to initial value before solving.
 
         Returns:
             tuple: Optimized variable, duration of optimization, total iterations.
         """
+        if reset_Lf:
+            self.Lf = self.Lf_initial
+            if verbose:
+                print(f"Lf reset to initial value: {self.Lf}")
+        
         x = np.copy(x_ini)
         self.objective_list = [self.obj(x), self.obj(x)]
         time_start = timer()
@@ -210,11 +217,15 @@ class FW_LP:
                 # On the boundary, use projected gradient descent
                 x_pre = x.copy()
                 if mu is None:
-                    beta = 2 / self.Lf
-                    while self.obj(x - beta * grad) > self.obj(x) - beta / 2 * np.linalg.norm(grad) ** 2:
-                        beta *= 0.9
-                    x = self.weighted_l1ball_projection(beta, grad, x)
-                    self.Lf = 1 / beta
+                    if self.Lf is None:
+                        raise ValueError(
+                            "Lipschitz constant Lf must be provided in __init__ "
+                            "or will be initialized in Frank-Wolfe interior phase. "
+                            "Cannot start on boundary without Lf."
+                        )
+                        
+                    mu_used = 1.0 / self.Lf
+                    x = self.weighted_l1ball_projection(mu_used, grad, x)
                 else:
                     x = self.weighted_l1ball_projection(mu, grad, x)
                 projection_residual = LA.norm(x - x_pre, 2)
@@ -237,10 +248,14 @@ class FW_LP:
                         L_estimate = LA.norm(grad - grad_perturbed) / step_norm
                         if np.isfinite(L_estimate) and L_estimate > 0:
                             self.Lf = max(L_estimate, 1e-10) 
+                        else:
+                            self.Lf = 1.0
+                            if verbose:
+                                print(f"Warning: Invalid Lipschitz estimate, using default Lf=1.0")
                     else:
                         self.Lf = 1.0
                         if verbose:
-                        print(f"Warning: Step norm {step_norm:.2e} too small for Lipschitz estimation, using default L_f =1.0")
+                        print(f"Warning: Step norm {step_norm:.2e} too small for Lipschitz estimation, using default Lf =1.0")
                 alpha, self.Lf = self.search_stepsize(descent_direction, x, fw_result, self.Lf)
                 x += alpha * descent_direction
             else:
@@ -267,6 +282,7 @@ if __name__ == "__main__":
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
     
+
 
 
 
