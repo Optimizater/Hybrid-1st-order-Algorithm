@@ -208,8 +208,9 @@ class FW_LP:
         time_start = timer()
 
         for iteration in range(self.maxiter):
-            if timer() - time_start > maxtime and verbose:
-                print("Maximum time reached.")
+            if timer() - time_start > maxtime:
+                if verbose:
+                    print("Maximum time reached.")
                 break
 
             grad = self.grad(x)  # Gradient computation
@@ -255,7 +256,7 @@ class FW_LP:
                     else:
                         self.Lf = 1.0
                         if verbose:
-                        print(f"Warning: Step norm {step_norm:.2e} too small for Lipschitz estimation, using default Lf =1.0")
+                            print(f"Warning: Step norm {step_norm:.2e} too small for Lipschitz estimation, using default Lf =1.0")
                 alpha, self.Lf = self.search_stepsize(descent_direction, x, fw_result, self.Lf)
                 x += alpha * descent_direction
             else:
@@ -270,6 +271,10 @@ class FW_LP:
         return x, time_end - time_start, iteration + 1
 
 if __name__ == "__main__":
+    print("="*70)
+    print("Testing FW_LP Solver")
+    print("="*70)
+    
     np.random.seed(2023)
     
     # Projection
@@ -278,10 +283,14 @@ if __name__ == "__main__":
     radius = 0.01 * LA.norm(y, p) ** p
     x_ini = 0.3 *  (radius ** (1/p)) * (np.abs(y).astype(np.float64) / LA.norm(y,p))
     
-    solver = FW_LP(p,radius,lambda x: 0.5*LA.norm(x-y)**2,lambda x:x-y, Lf = 1)
+    solver = FW_LP(p,radius,
+                   lambda x: 0.5*LA.norm(x-y)**2,
+                   lambda x:x-y, 
+                   Lf = 1.0)
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
     
+
 
 
 
