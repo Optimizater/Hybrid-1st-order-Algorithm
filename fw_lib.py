@@ -49,9 +49,9 @@ class FW_LP:
             obj_diff = self.EPS
         else:
             obj_diff = self.objective_list[-2] - self.objective_list[-1] + self.EPS
-        M = g**2 / (2 * obj_diff * LA.norm(d)**2)
+        M = g**2 / (2 * obj_diff * LA.norm(d)**2 + self.EPS)
         M = np.clip(M, eta * Lf, Lf)
-        alpha = min(g / (M * LA.norm(d)**2), 1)
+        alpha = min(g / (M * LA.norm(d)**2 + + self.EPS), 1)
         iter_count = 0
         while self.obj(x + alpha * d) > self.obj(x) - alpha * g + 0.5 * alpha**2 * M * LA.norm(d)**2:
             if iter_count > 100:
@@ -309,6 +309,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {duration:.2f}s")
     
     
+
 
 
 
