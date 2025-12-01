@@ -116,27 +116,47 @@ class FW_LP:
 
     def weighted_l1ball_projection(self, mu, grad, x):
         """
-        Projects onto the weighted l1 ball.
+        Project a vector onto the weighted l1 ball.
 
         Args:
-            mu (float): Step size.
+            mu (float): Step size for the gradient descent step.
             grad (np.array): Gradient of the objective at the current iterate.
             x (np.array): Current iterate.
 
         Returns:
             np.array: Projected point.
         """
+        # Step 1: Compute the point to be projected: u^k = x^k - mu * \nabla f(x^k)
         z = x - mu * grad  # Point to be projected
+
+        # Step 2: Enforce sign consistency (implements sign extraction)
+        # Mathematical: \tilde{u}_i = sign(x_i) * u_i
+        # For nonnegative weighted l1 projection, if sign(x_i) \neq sign(u_i),
+        # then \tilde{u}_i < 0, which would project to 0 on the nonnegative ball.
+        # We pre-filter these to improve efficiency.
+        
         z[x * z <= 0] = 0  # Enforce sign consistency
+
+        # Step 3: Handle inactive components (near-zero in x^k)
         z[np.abs(x) <= self.EPS] = 0  # Handle zero components
 
+        # Step 4: Identify active indices I(x^k) = {i : |x_i^k| > EPS}
         active_indices = np.where(np.abs(x) > self.EPS)[0]
+
+        # Step 5: Compute weights for the weighted l1 ball projection
         weights = np.zeros_like(x)
         weights[active_indices] = self.p * np.abs(x[active_indices] + self.EPS) ** (self.p - 1)
+
+        # Step 6: Compute the radius for the weighted l1 ball
         radius_L1 = (self.radius - LA.norm(x[active_indices], self.p) ** self.p +
                      weights[active_indices].dot(np.abs(x[active_indices])))
+
+        # Step 7: Initialize the projected point (inactive indices already zero)
         x_projected = np.zeros_like(z)
+
+        # Step 8: Project onto nonnegative weighted l1 ball and map back
         x_projected[active_indices] = self.base_weighted_sort(z[active_indices], weights[active_indices], radius_L1)
+        
         return x_projected
 
     def fw_subproblem(self, grad, x):
@@ -234,3 +254,4 @@ if __name__ == "__main__":
     x,_,_ = solver.solve(x_ini.copy(),mu=1,verbose=True)
     
     
+
