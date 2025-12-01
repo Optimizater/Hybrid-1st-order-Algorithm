@@ -63,7 +63,7 @@ class FW_LP:
             alpha = self.binary_search(0.0, alpha, d, x)
         return alpha, M
 
-    def binary_search(self, alpha_l, alpha_r, desect_dir, x, tol=1e-12):
+    def binary_search(self, alpha_l, alpha_r, desect_dir, x, tol=1e-12, max_iter=200):
         """
         Bisection method to find a root of the equation over interval (0, alpha_bar).
         ||x^k + gamma * d||_p^p = radius.
@@ -80,13 +80,16 @@ class FW_LP:
         """
         alpha_bi = alpha_l + 0.5 * (alpha_r - alpha_l)
         res = LA.norm(x + alpha_bi * desect_dir, self.p) ** self.p - self.radius
-        while abs(res) > tol:
+
+        iter = 0
+        while abs(res) > tol and iter < max_iter:
             if res > 0:
                 alpha_r = alpha_bi
             else:
                 alpha_l = alpha_bi
             alpha_bi = alpha_l + 0.5 * (alpha_r - alpha_l)
             res = LA.norm(x + alpha_bi * desect_dir, self.p) ** self.p - self.radius
+            iter += 1
         return alpha_bi
 
     def base_weighted_sort(self,y,w,a):
@@ -309,6 +312,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {duration:.2f}s")
     
     
+
 
 
 
