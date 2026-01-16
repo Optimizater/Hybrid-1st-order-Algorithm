@@ -350,8 +350,8 @@ class FW_LP:
 
 if __name__ == "__main__":
 
-    warnings.filterwarnings('warn', category=UserWarning)
-    warnings.filterwarnings('warn', category=RuntimeWarning)
+    # warnings.filterwarnings('warn', category=UserWarning)
+    # warnings.filterwarnings('warn', category=RuntimeWarning)
     
     print("="*70)
     print("Testing FW_LP Solver")
@@ -386,6 +386,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
