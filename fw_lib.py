@@ -66,7 +66,7 @@ class FW_LP:
         alpha = min(g / (M * d_norm_sq), 1)
         iter_count = 0
         
-        while self.obj(x + alpha * d) > self.obj(x) - alpha * g + 0.5 * alpha**2 * M * LA.norm(d)**2:
+        while self.obj(x + alpha * d) > self.obj(x) - alpha * g + 0.5 * alpha**2 * M * d_norm_sq:
             if iter_count > 100:
                 break
             iter_count += 1
@@ -386,6 +386,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
