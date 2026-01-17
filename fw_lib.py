@@ -189,7 +189,7 @@ class FW_LP:
 
         # Step 6: Compute the radius for the weighted l1 ball
         # radius_L1 = weights[active_indices].dot(np.abs(x[active_indices]))
-        radius_L1 = self.radius - np.sum(np.abs(x) ** self.p)
+        radius_L1 = self.radius - np.sum(np.abs(x) ** self.p) + weights[active_indices].dot(np.abs(x[active_indices]))
 
         # Step 7: Initialize the projected point (inactive indices already zero)
         x_projected = np.zeros_like(z)
@@ -379,6 +379,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
