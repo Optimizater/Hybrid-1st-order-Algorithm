@@ -34,7 +34,7 @@ class FW_LP:
         self.EPS = np.finfo(np.float64).eps
         self.STEP_SCALE = 1e-3  # For Lipschitz estimation
         self.Lf_MIN = 1e-10     # Minimum allowed Lf value
-        self.PRINT_INTERVAL = 100  # Print every 100 iterations for verbose mode
+        self.PRINT_INTERVAL = 10  # Print every 100 iterations for verbose mode
 
         self.objective_list = []
 
@@ -162,6 +162,12 @@ class FW_LP:
         Returns:
             np.array: Projected point.
         """
+
+        if grad.shape != x.shape:
+            raise ValueError(f"grad shape {grad.shape} must match x shape {x.shape}")
+        if not isinstance(self.p, (int, float)):
+            raise TypeError("self.p must be a numeric value (int/float)")
+        
         # Step 1: Compute the point to be projected: u^k = x^k - mu * \nabla f(x^k)
         z = x - mu * grad 
         z = z.copy()
@@ -210,18 +216,29 @@ class FW_LP:
         Returns:
             tuple: Direction and the result of the Frank-Wolfe subproblem.
         """
+        if np.allclose(grad, 0, atol=self.EPS):
+            return np.zeros_like(x), 0.0
+            
         z = np.zeros_like(x)
         idx = np.argmax(np.abs(grad))
 
         # Safe calculation of radius^(1/p) (avoid overflow)
+        
         try:
             radius_pow = np.power(self.radius, 1/self.p)
         except FloatingPointError:
             radius_pow = np.finfo(np.float64).max
             warnings.warn("Radius^(1/p) overflow (clamped to max float)")
+        except Exception as e:
+            radius_pow = np.finfo(np.float64).max
+            warnings.warn(f"Failed to compute radius^(1/p): {str(e)}, clamped to max float64")
+
+        if np.isclose(grad[idx], 0, atol=self.EPS):
+            sign = -1  
+        else:
+            sign = -np.sign(grad[idx])
         
-        # z[idx] = self.radius ** (1/self.p) * (-np.sign(grad[idx]))
-        z[idx] = radius_pow * (-np.sign(grad[idx]))
+        z[idx] = radius_pow * sign
         descent_direction = z - x
         fw_result = grad.dot(-descent_direction)
         
@@ -256,11 +273,18 @@ class FW_LP:
         for iteration in range(self.maxiter):
             if timer() - time_start > maxtime:
                 if verbose:
-                    print("Maximum time reached.")
+                    print(f"Stopped at iteration {iteration} (maxiter/maxtime reached)")
                 break
 
-            grad = self.grad(x)  # Gradient computation
-            if abs(self.radius - LA.norm(x, self.p) ** self.p) <= tol:
+            grad = self.grad(x)  
+            x_norm_p = np.sum(np.abs(x)**self.p)
+
+            if x_norm_p > self.radius + self.EPS:
+                if verbose:
+                    print("Infeasible iterates.")
+                break
+            
+            elif x_norm_p >= self.radius - self.EPS:
                 # On the boundary, use projected gradient descent
                 x_pre = x.copy()
                 if mu is None:
@@ -277,63 +301,47 @@ class FW_LP:
                     x = self.weighted_l1ball_projection(mu, grad, x)
                     
                 projection_residual = LA.norm(x - x_pre, 2)
+                x_norm_p_new = np.sum(np.abs(x) ** self.p)
+                    if x_norm_p_new > self.radius + self.EPS:
+                        warnings.warn(f"Projection exceeds Lp ball boundary (norm_p={x_norm_p_new:.2e} > radius={self.radius:.2e})")
+                
                 if projection_residual < stopping_tol:
                     if verbose:
                         # print("Projection residual reaches stopping tolerance.")
                         print(f"Converged at iteration {iteration} (projection residual: {projection_residual:.2e})")
                     break
-            elif LA.norm(x, self.p) ** self.p < self.radius:
+            else:
                 # Inside the Lp ball, use Frank-Wolfe method
                 descent_direction, fw_result = self.fw_subproblem(grad, x)
+                
                 if fw_result < stopping_tol:
                     if verbose:
-                        # print("Frank-Wolfe residual below tolerance.")
                         print(f"Converged at iteration {iteration} (FW residual: {fw_result:.2e})")
                     break
                     
-                # if self.Lf == None:
-                    # step = 1e-3 * descent_direction
-                    # step_norm = LA.norm(descent_direction)
-                    #if step_norm > self.EPS:
-                        #grad_perturbed = self.grad(x + step)
-                        #L_estimate = LA.norm(grad - grad_perturbed) / step_norm
-                        #if np.isfinite(L_estimate) and L_estimate > 0:
-                            #self.Lf = max(L_estimate, 1e-10) 
-                        #else:
-                            #self.Lf = 1.0
-                            #if verbose:
-                                #print(f"Warning: Invalid Lipschitz estimate, using default Lf=1.0")
-                    #else:
-                        #self.Lf = 1.0
-                        #if verbose:
-                            #print(f"Warning: Step norm {step_norm:.2e} too small for Lipschitz estimation, using default Lf =1.0")
-                    if self.Lf is None:
-                        # Normalize step to fixed norm (avoid too small/large steps)
-                        d_norm = LA.norm(descent_direction)
-                        if d_norm < self.EPS:  # 用类的EPS作为统一阈值，更合理
-                            self.Lf = 1.0
-                            warnings.warn("Descent direction norm too small (Lf set to 1.0)")
-                        else:
-                            # 核心优化：归一化步长到固定范数self.STEP_SCALE（1e-3）
-                            step = self.STEP_SCALE * (descent_direction / d_norm)
-                            grad_perturbed = self.grad(x + step)
+                if self.Lf is None:
+                    # Normalize step to fixed norm (avoid too small/large steps)
+                    d_norm = LA.norm(descent_direction)
+                    if d_norm < self.EPS:  # 用类的EPS作为统一阈值，更合理
+                        self.Lf = 1.0
+                        warnings.warn("Descent direction norm too small (Lf set to 1.0)")
+                    else:
+                        step = self.STEP_SCALE * (descent_direction / d_norm)
+                        grad_perturbed = self.grad(x + step)
         
-                            # Check for finite gradients
-                            if not (np.all(np.isfinite(grad)) and np.all(np.isfinite(grad_perturbed))):
-                                self.Lf = 1.0
-                                warnings.warn("Non-finite gradient detected (Lf set to 1.0)")
-                            else:
-                                L_estimate = LA.norm(grad - grad_perturbed) / self.STEP_SCALE
-                                self.Lf = max(L_estimate, self.Lf_MIN)
+                        # Check for finite gradients
+                        if not (np.all(np.isfinite(grad)) and np.all(np.isfinite(grad_perturbed))):
+                            self.Lf = 1.0
+                            warnings.warn("Non-finite gradient detected (Lf set to 1.0)")
+                        else:
+                            L_estimate = LA.norm(grad - grad_perturbed) / self.STEP_SCALE
+                            self.Lf = max(L_estimate, self.Lf_MIN)
                 
                 alpha, self.Lf = self.search_stepsize(descent_direction, x, fw_result, self.Lf)
                 x += alpha * descent_direction
-            else:
-                if verbose:
-                    print("Infeasible iterates.")
-                break
+                
             self.objective_list.append(self.obj(x))
-            # if verbose:
+           
             if verbose and (iteration % self.PRINT_INTERVAL == 0 or iteration == self.maxiter-1):
                 elapsed = timer() - time_start
                 print(f"Iteration: {iteration:6}, Objective: {self.objective_list[-1]:.4e}, Time: {elapsed:.2f}, Lf: {self.Lf:.2e}")
@@ -379,6 +387,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
