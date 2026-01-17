@@ -302,8 +302,8 @@ class FW_LP:
                     
                 projection_residual = LA.norm(x - x_pre, 2)
                 x_norm_p_new = np.sum(np.abs(x) ** self.p)
-                    if x_norm_p_new > self.radius + self.EPS:
-                        warnings.warn(f"Projection exceeds Lp ball boundary (norm_p={x_norm_p_new:.2e} > radius={self.radius:.2e})")
+                if x_norm_p_new > self.radius + self.EPS:
+                    warnings.warn(f"Projection exceeds Lp ball boundary (norm_p={x_norm_p_new:.2e} > radius={self.radius:.2e})")
                 
                 if projection_residual < stopping_tol:
                     if verbose:
@@ -387,6 +387,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
