@@ -107,7 +107,6 @@ class FW_LP:
         # Warn if max iterations reached without convergence
         if iter >= max_iter and abs(res) > tol:
             warnings.warn(f"Binary search did not converge (residual: {res:.2e})")
-        
         return alpha_bi
 
     def base_weighted_sort(self,y,w,a):
@@ -125,8 +124,10 @@ class FW_LP:
         signum = np.sign(y)
         y_abs = np.abs(y)
 
+        if np.sum(w * y_abs) <= a + self.EPS:
+            return y
+
         w_safe = np.copy(w)
-        # w_safe[w_safe == 0] = self.EPS
         w_safe[np.isclose(w_safe, 0, atol=self.EPS)] = self.EPS
         
         z = y_abs / w_safe        
@@ -145,13 +146,6 @@ class FW_LP:
             tau = tau_candidates[k]
         else:
             tau = tau_candidates[0]
-       
-        # while ((i < d) and (z[i] > tau)):
-        #     sumWY += w[z_perm[i]] * y[z_perm[i]]
-        #     Ws += w[z_perm[i]] * w[z_perm[i]]
-        #     tau = (sumWY - a) / Ws
-        #     i += 1
-
         
         projected = np.maximum(y_abs - w_safe * tau, 0.0) * signum
         return projected
@@ -169,7 +163,7 @@ class FW_LP:
             np.array: Projected point.
         """
         # Step 1: Compute the point to be projected: u^k = x^k - mu * \nabla f(x^k)
-        z = x - mu * grad  # Point to be projected
+        z = x - mu * grad 
         z = z.copy()
 
         # Step 2: Enforce sign consistency (implements sign extraction)
@@ -178,7 +172,6 @@ class FW_LP:
         # then \tilde{u}_i < 0, which would project to 0 on the nonnegative ball.
         # We pre-filter these to improve efficiency.
         
-        #z[x * z <= 0] = 0 
         z[(x * z) < -self.EPS] = 0 
 
         # Step 3: Handle inactive components (near-zero in x^k)
@@ -195,8 +188,8 @@ class FW_LP:
         weights[active_indices] = self.p * (np.abs(x[active_indices]) + self.EPS) ** (self.p - 1)
 
         # Step 6: Compute the radius for the weighted l1 ball
-        radius_L1 = (self.radius - LA.norm(x[active_indices], self.p) ** self.p +
-                     weights[active_indices].dot(np.abs(x[active_indices])))
+        # radius_L1 = weights[active_indices].dot(np.abs(x[active_indices]))
+        radius_L1 = self.radius - np.sum(np.abs(x) ** self.p)
 
         # Step 7: Initialize the projected point (inactive indices already zero)
         x_projected = np.zeros_like(z)
@@ -386,6 +379,7 @@ if __name__ == "__main__":
     print(f"Total Iterations: {iter_num}, Total Time: {elapsedTime:.2f}s")
     
     
+
 
 
 
